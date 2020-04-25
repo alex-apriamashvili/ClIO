@@ -1,69 +1,121 @@
 # ClIO
+Command-Line Input & Output library
 
-Command Line Input & Output library
+This library provides a simple and structured way of defining arguments that you expect to receive for your CLI as input and then work with those arguments in an easy manner. Also, this library provides a clear way of printing your messages to `stdout` and `stderr` file descriptors. 
 
-==== README IS UNDER DEVELOPMENT ===
-
-### Example Usage
-
+### Usage
 #### Input
-To create input, `ClIO` shall be told about the values that could be expected in that input.  
-For example, in case if the program expects to recieve parameters such as `-l` – for local path and `-r` for a URL, the input could be describes as: 
-```swift
+There are 2 simple steps that you need to execute to start working with your command-line input more effectively:
+##### 1. Set up your expectations
+To make your work with command line arguments more convenient and systematic, there is a parameter constraint that needs to be defined on the consumer (CLI) side.
 
-/// option key description
-enum ExampleOption: String, InputParameterKeyConstraint {
-  case local = "-l"
-  case remote = "-r"
+Imagine, that we expect 'foo' (`-F` or `--foo`) option to be passed through the command line\*.
+###### Example:
+```bash
+$ your-cli --foo some-value
+```
+or
+```bash
+$ your-cli -F some-value
+```
+In that case, we need to define our expectation as the following:
+```swift
+enum ExampleOption: Equatable {
   case none
+  case foo
+}
+
+extension ExampleOption: RawRepresentable, InputParameterKeyConstraint {  
+  
+  static var empty: ExampleOption = .none
+  var rawValue: String { return "\(self)" }
+  var value: String { return rawValue }
   
   init?(rawValue: String) {
     switch rawValue {
-      case "-l": self = .local
-      case "-r": self = .remote
-      default: return nil
+    case Opt.foo.short, Opt.foo.long:
+      self = .foo
     }
   }
   
-  init?(value: String) {
-    self.init(rawValue: value)
-  }
+  init?(value: String) { self.init(rawValue: value) }
   
-  var value: String {
-    rawValue
+  struct Opt {
+    let short: String
+    let long: String
+    
+    static let foo = Opt(short: "-F", long: "--foo")
   }
-  
-  static var empty: ExampleOption = .none
 }
 ```
-When input is defined, it can be prapagated as a type that `ClIO` can try to populate from the arguments it recieves:
+Once we defined our expectation, we're ready to proceed to the step 2.
+
+##### 2. Assemble Input container
+To start using `ClIO.Input` simply call `Assembly` to build you an instance of the container.
 ```swift
-// `CommandLine.arguments` contains ["cmd", "-r", "./path/to/local/resource.ext"]
-let inputReader = Assembly<ExampleOption>.assembleInput(CommandLine.arguments, CommandLine.argc)
+let parametersContainer = ClIO.Assembly.assembleInput(
+  CommandLine.arguments,
+  CommandLine.argc,
+  optionType: ExampleOption.self
+)
 ```
-Once the reader is assembled, it can provide all the parameters loaded from `argv`, which means that you can build your logic over recieving each of those parameters:
+Now you can build your logic over receiving these parameters.  
+For example:
 ```swift
-inputReader.inputParameters.forEach {
-  switch $0.key {
-  case .local:
-    // handle local recource at `$0.value`
-  case .remote:
-    // handle remote resource at `$0.value`
-  }
+guard let firstParameter = parametersContainer.inputParameters.first else { return }
+switch firstParameter.key {
+case .none, .empty:
+  // - no parameters were received, exiting with an error
+  exit(1)
+case .foo:
+  // - foo option followed by a parameter was recieved
+  exit(0)
+default:
+  return
 }
 ```
 #### Output
-`ClIO` can print regular log messages as well as warning and error ones. Both warning and error messages will be written to `stderr`.  
-To assemble output, simply use the following expression:
+Using output is easy, all you need is to assemble an instance of that output.
 ```swift
-let outputWriter = assembleOutput<_>.assembleOutput()
+let output = ClIO.Assembly.assembleOutput()
 ```
-Once you have the outpur you can write your messages to either `stdout` or `stderr`.    
-To write an error, use:
+Now you can slightly enhance the logic that we have above by printing messages to the output:
 ```swift
-outputWriter.writeMessage("Whoa! Something went wrong. We'll all gonna die!", to: .error)
+guard let firstParameter = parametersContainer.inputParameters.first else { return }
+switch firstParameter.key {
+case .none, .empty:
+  output.writeMessage("No parameters found", to: .error)
+  exit(1)
+case .foo:
+  output.writeMessage("foo option was received with value: \(firstParameter.value)")
+  exit(0)
+default:
+  return
+}
 ```
-To write a regular output/log message use:
+
+### Installation
+`ClIO` is distributed as an SPM package and can be easily included in your project.  
+To add `ClIO` to your project, simply add the following dependency definition to your `Package.swift`:
 ```swift
-outputWriter.writeMessage("Your mind is like a parachute: If it isn’t open, it doesn’t work.")
+private let clioDependency =
+  Package.Dependency.package(
+    url: "https://github.com/alex-apriamashvili/ClIO.git",
+    .upToNextMajor(from: "0.0.2")
+)
 ```
+Now you can specify this package dependency among your `Package.dependencies` as:
+```swift
+let package = Package(
+    name: "YourPackageName",
+    dependencies: [
+      ...,
+      clioDependency,
+    ],
+    ...
+)
+```
+Please, note that version `0.0.2` might not be the latest available at the moment. To get the latest available release number, visit [Releases](https://github.com/alex-apriamashvili/ClIO/releases).
+
+---
+\* – if some of the input parameters don't have options, please, refer to `MockOption` in tests to see how such cases could be described.

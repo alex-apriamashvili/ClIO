@@ -3,17 +3,22 @@
 
 import PackageDescription
 
+// MARK: - Names
+
+import PackageDescription
+
 private let packageName = "ClIO"
 private let testTargetName = "ClIOTests"
-private let mainTargetDependency = Target.Dependency.init(stringLiteral: packageName)
 
-private let xctAssertResult = "XCTAssertResult"
-private let xctAssertResultRepo = "https://github.com/alex-apriamashvili/\(xctAssertResult).git"
-private let xctAssertDependency = Target.Dependency.init(stringLiteral: xctAssertResult)
-private let xctAssertResultDependency = Package.Dependency.package(
-  url: xctAssertResultRepo,
-  .upToNextMajor(from: Version(0, 0, 1))
+// MARK: - External Packages
+
+private let xctAssertResultDependency =
+  Package.Dependency.package(
+    url: "https://github.com/alex-apriamashvili/XCTAssertResult.git",
+    .upToNextMajor(from: "0.0.1")
 )
+
+// MARK: - Package Definition
 
 let package = Package(
     name: packageName,
@@ -25,6 +30,9 @@ let package = Package(
     ],
     targets: [
         .target(name: packageName),
-        .testTarget(name: testTargetName, dependencies: [mainTargetDependency, xctAssertDependency])
+        .testTarget(
+          name: testTargetName,
+          dependencies: ["ClIO", "XCTAssertResult"]
+        )
     ]
 )

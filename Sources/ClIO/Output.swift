@@ -1,6 +1,6 @@
 //
 //  Output.swift
-//  cli
+//  clio
 //
 //  Created by Alex Apriamashvili on 08/02/2020.
 //
@@ -9,14 +9,22 @@ import Foundation
 
 struct Output: CommandLineOutput {
   
-  func writeMessage(_ message: String, to: OutputType) {
+  @discardableResult
+  func writeMessage(_ message: String, to: OutputType) -> String {
+    let formatted: String
+    let out: UnsafeMutablePointer<FILE>
     switch to {
     case .standard:
-      print("\(message)")
+      formatted = "\(message)\n"
+      out = stdout
     case .warning:
-      fputs("warning: \(message)\n", stderr)
+      formatted = "warning: \(message)\n"
+      out = stderr
     case .error:
-      fputs("error: \(message)\n", stderr)
+      formatted = "error: \(message)\n"
+      out = stderr
     }
+    fputs(formatted, out)
+    return formatted
   }
 }
